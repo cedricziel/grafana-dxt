@@ -14,8 +14,10 @@ UNAME_M := $(shell uname -m)
 # Map platform names to Grafana release names
 ifeq ($(UNAME_S),Darwin)
 	OS := Darwin
+	PLATFORM := darwin
 else ifeq ($(UNAME_S),Linux)
 	OS := Linux
+	PLATFORM := linux
 else
 	$(error Unsupported operating system: $(UNAME_S))
 endif
@@ -51,7 +53,7 @@ get-latest-version:
 	fi
 	@echo "📦 Latest version: $(LATEST_VERSION)"
 
-# Download the latest Grafana MCP server
+# Download the latest Grafana MCP server for current platform
 .PHONY: download
 download: get-latest-version
 	@echo "⬇️  Downloading Grafana MCP server $(LATEST_VERSION) for $(OS) $(ARCH)..."
@@ -61,8 +63,103 @@ download: get-latest-version
 	@echo "📂 Extracting to $(SERVER_DIR)..."
 	@tar -xzf /tmp/$(DOWNLOAD_FILE) -C $(SERVER_DIR)
 	@rm /tmp/$(DOWNLOAD_FILE)
-	@chmod +x $(SERVER_DIR)/$(BINARY_NAME)
-	@echo "✅ Downloaded $(BINARY_NAME) $(LATEST_VERSION)"
+	@mv $(SERVER_DIR)/$(BINARY_NAME) $(SERVER_DIR)/$(BINARY_NAME)-$(PLATFORM)
+	@chmod +x $(SERVER_DIR)/$(BINARY_NAME)-$(PLATFORM)
+	@echo "✅ Downloaded $(BINARY_NAME)-$(PLATFORM) $(LATEST_VERSION)"
+
+# Download binaries for all platforms
+.PHONY: download-all-platforms
+download-all-platforms: get-latest-version download-darwin-x86_64 download-darwin-arm64 download-linux-x86_64 download-linux-arm64 download-windows-x86_64
+	@echo "✅ Downloaded binaries for all platforms"
+
+# Download Darwin x86_64
+.PHONY: download-darwin-x86_64
+download-darwin-x86_64: get-latest-version
+	@echo "⬇️  Downloading Darwin x86_64 binary..."
+	@mkdir -p $(SERVER_DIR)
+	@curl -L -o /tmp/$(BINARY_NAME)_Darwin_x86_64.tar.gz \
+		https://github.com/grafana/mcp-grafana/releases/download/$(LATEST_VERSION)/$(BINARY_NAME)_Darwin_x86_64.tar.gz
+	@tar -xzf /tmp/$(BINARY_NAME)_Darwin_x86_64.tar.gz -C /tmp
+	@mv /tmp/$(BINARY_NAME) $(SERVER_DIR)/$(BINARY_NAME)-darwin-x86_64
+	@chmod +x $(SERVER_DIR)/$(BINARY_NAME)-darwin-x86_64
+	@rm /tmp/$(BINARY_NAME)_Darwin_x86_64.tar.gz
+	@rm -f /tmp/LICENSE /tmp/README.md
+	@echo "✅ Downloaded Darwin x86_64"
+
+# Download Darwin arm64
+.PHONY: download-darwin-arm64
+download-darwin-arm64: get-latest-version
+	@echo "⬇️  Downloading Darwin arm64 binary..."
+	@mkdir -p $(SERVER_DIR)
+	@curl -L -o /tmp/$(BINARY_NAME)_Darwin_arm64.tar.gz \
+		https://github.com/grafana/mcp-grafana/releases/download/$(LATEST_VERSION)/$(BINARY_NAME)_Darwin_arm64.tar.gz
+	@tar -xzf /tmp/$(BINARY_NAME)_Darwin_arm64.tar.gz -C /tmp
+	@mv /tmp/$(BINARY_NAME) $(SERVER_DIR)/$(BINARY_NAME)-darwin-arm64
+	@chmod +x $(SERVER_DIR)/$(BINARY_NAME)-darwin-arm64
+	@rm /tmp/$(BINARY_NAME)_Darwin_arm64.tar.gz
+	@rm -f /tmp/LICENSE /tmp/README.md
+	@echo "✅ Downloaded Darwin arm64"
+
+# Download Linux x86_64
+.PHONY: download-linux-x86_64
+download-linux-x86_64: get-latest-version
+	@echo "⬇️  Downloading Linux x86_64 binary..."
+	@mkdir -p $(SERVER_DIR)
+	@curl -L -o /tmp/$(BINARY_NAME)_Linux_x86_64.tar.gz \
+		https://github.com/grafana/mcp-grafana/releases/download/$(LATEST_VERSION)/$(BINARY_NAME)_Linux_x86_64.tar.gz
+	@tar -xzf /tmp/$(BINARY_NAME)_Linux_x86_64.tar.gz -C /tmp
+	@mv /tmp/$(BINARY_NAME) $(SERVER_DIR)/$(BINARY_NAME)-linux-x86_64
+	@chmod +x $(SERVER_DIR)/$(BINARY_NAME)-linux-x86_64
+	@rm /tmp/$(BINARY_NAME)_Linux_x86_64.tar.gz
+	@rm -f /tmp/LICENSE /tmp/README.md
+	@echo "✅ Downloaded Linux x86_64"
+
+# Download Linux arm64
+.PHONY: download-linux-arm64
+download-linux-arm64: get-latest-version
+	@echo "⬇️  Downloading Linux arm64 binary..."
+	@mkdir -p $(SERVER_DIR)
+	@curl -L -o /tmp/$(BINARY_NAME)_Linux_arm64.tar.gz \
+		https://github.com/grafana/mcp-grafana/releases/download/$(LATEST_VERSION)/$(BINARY_NAME)_Linux_arm64.tar.gz
+	@tar -xzf /tmp/$(BINARY_NAME)_Linux_arm64.tar.gz -C /tmp
+	@mv /tmp/$(BINARY_NAME) $(SERVER_DIR)/$(BINARY_NAME)-linux-arm64
+	@chmod +x $(SERVER_DIR)/$(BINARY_NAME)-linux-arm64
+	@rm /tmp/$(BINARY_NAME)_Linux_arm64.tar.gz
+	@rm -f /tmp/LICENSE /tmp/README.md
+	@echo "✅ Downloaded Linux arm64"
+
+# Download Windows x86_64
+.PHONY: download-windows-x86_64
+download-windows-x86_64: get-latest-version
+	@echo "⬇️  Downloading Windows x86_64 binary..."
+	@mkdir -p $(SERVER_DIR)
+	@curl -L -o /tmp/$(BINARY_NAME)_Windows_x86_64.tar.gz \
+		https://github.com/grafana/mcp-grafana/releases/download/$(LATEST_VERSION)/$(BINARY_NAME)_Windows_x86_64.tar.gz
+	@tar -xzf /tmp/$(BINARY_NAME)_Windows_x86_64.tar.gz -C /tmp
+	@mv /tmp/$(BINARY_NAME).exe $(SERVER_DIR)/$(BINARY_NAME)-windows-x86_64.exe
+	@rm /tmp/$(BINARY_NAME)_Windows_x86_64.tar.gz
+	@rm -f /tmp/LICENSE /tmp/README.md
+	@echo "✅ Downloaded Windows x86_64"
+
+# Create platform-specific symlinks for current platform
+.PHONY: link-platform-binaries
+link-platform-binaries:
+	@echo "🔗 Creating platform-specific symlinks..."
+	@if [ "$(PLATFORM)" = "darwin" ]; then \
+		if [ -f $(SERVER_DIR)/$(BINARY_NAME)-darwin-$(ARCH) ]; then \
+			ln -sf $(BINARY_NAME)-darwin-$(ARCH) $(SERVER_DIR)/$(BINARY_NAME)-darwin; \
+			echo "✅ Created symlink for Darwin"; \
+		fi \
+	elif [ "$(PLATFORM)" = "linux" ]; then \
+		if [ -f $(SERVER_DIR)/$(BINARY_NAME)-linux-$(ARCH) ]; then \
+			ln -sf $(BINARY_NAME)-linux-$(ARCH) $(SERVER_DIR)/$(BINARY_NAME)-linux; \
+			echo "✅ Created symlink for Linux"; \
+		fi \
+	fi
+	@if [ -f $(SERVER_DIR)/$(BINARY_NAME)-windows-x86_64.exe ]; then \
+		ln -sf $(BINARY_NAME)-windows-x86_64.exe $(SERVER_DIR)/$(BINARY_NAME)-windows.exe; \
+		echo "✅ Created symlink for Windows"; \
+	fi
 
 # Update version in manifest.json and VERSION file
 .PHONY: update-version
@@ -78,24 +175,11 @@ update-version: get-latest-version
 	fi
 	@echo "✅ Version updated to $(LATEST_VERSION)"
 
-# Update manifest to use binary instead of Node.js script
-.PHONY: update-manifest-binary
-update-manifest-binary:
-	@echo "🔧 Updating manifest.json to use binary executable..."
-	@if command -v jq >/dev/null 2>&1; then \
-		jq '.server.entry_point = "server/mcp-grafana" | .server.mcp_config.command = "$${__dirname}/server/mcp-grafana" | .server.mcp_config.args = []' manifest.json > manifest.json.tmp && mv manifest.json.tmp manifest.json; \
-	else \
-		echo "⚠️  Please manually update manifest.json to use the binary"; \
-		echo "   Set server.entry_point to: server/mcp-grafana"; \
-		echo "   Set server.mcp_config.command to: \$${__dirname}/server/mcp-grafana"; \
-		echo "   Set server.mcp_config.args to: []"; \
-	fi
-
 # Clean downloaded files
 .PHONY: clean
 clean:
 	@echo "🧹 Cleaning up..."
-	@rm -rf $(SERVER_DIR)/$(BINARY_NAME)
+	@rm -f $(SERVER_DIR)/$(BINARY_NAME)-*
 	@rm -f $(VERSION_FILE)
 	@echo "✅ Cleaned up"
 
@@ -113,6 +197,7 @@ version:
 info:
 	@echo "Platform Information:"
 	@echo "  OS: $(OS)"
+	@echo "  Platform: $(PLATFORM)"
 	@echo "  Architecture: $(ARCH)"
 	@echo "  Download file: $(DOWNLOAD_FILE)"
 	@echo ""
@@ -121,19 +206,28 @@ info:
 	else \
 		echo "No version installed yet"; \
 	fi
+	@echo ""
+	@echo "Available binaries in $(SERVER_DIR):"
+	@ls -la $(SERVER_DIR)/$(BINARY_NAME)-* 2>/dev/null || echo "  None"
 
 # Help target
 .PHONY: help
 help:
 	@echo "Grafana DXT Makefile - Available targets:"
 	@echo ""
-	@echo "  make all              - Download latest version and update configs (default)"
-	@echo "  make download         - Download the latest Grafana MCP server binary"
-	@echo "  make update-version   - Update version in manifest.json and VERSION file"
-	@echo "  make update-manifest-binary - Update manifest.json to use binary executable"
-	@echo "  make clean            - Remove downloaded binary and VERSION file"
-	@echo "  make version          - Show current installed version"
-	@echo "  make info             - Show platform and version information"
-	@echo "  make help             - Show this help message"
+	@echo "  make all                     - Download latest version for current platform and update configs (default)"
+	@echo "  make download                - Download the latest Grafana MCP server binary for current platform"
+	@echo "  make download-all-platforms  - Download binaries for all supported platforms"
+	@echo "  make download-darwin-x86_64  - Download Darwin x86_64 binary"
+	@echo "  make download-darwin-arm64   - Download Darwin arm64 binary"
+	@echo "  make download-linux-x86_64   - Download Linux x86_64 binary"
+	@echo "  make download-linux-arm64    - Download Linux arm64 binary"
+	@echo "  make download-windows-x86_64 - Download Windows x86_64 binary"
+	@echo "  make link-platform-binaries  - Create platform-specific symlinks"
+	@echo "  make update-version          - Update version in manifest.json and VERSION file"
+	@echo "  make clean                   - Remove all downloaded binaries and VERSION file"
+	@echo "  make version                 - Show current installed version"
+	@echo "  make info                    - Show platform and version information"
+	@echo "  make help                    - Show this help message"
 	@echo ""
-	@echo "Platform: $(OS) $(ARCH)"
+	@echo "Current Platform: $(OS) $(ARCH)"
