@@ -1,0 +1,34 @@
+{
+  "dxt_version": "0.1",
+  "name": "grafana-dxt",
+  "version": "v0.6.4",
+  "description": "Grafana MCP server integration for Desktop Extensions",
+  "author": {
+    "name": "Cedric Ziel"
+  },
+  "server": {
+    "type": "binary",
+    "entry_point": "server/mcp-grafana",
+    "mcp_config": {
+      "command": "${__dirname}/server/mcp-grafana",
+      "args": [],
+      "env": {},
+      "platform_overrides": {
+        "darwin": {
+          "command": "${__dirname}/server/mcp-grafana-darwin"
+        },
+        "linux": {
+          "command": "${__dirname}/server/mcp-grafana-linux"
+        },
+        "win32": {
+          "command": "${__dirname}/server/mcp-grafana-windows.exe"
+        }
+      }
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "linux", "win32"],
+    "claude_desktop": ">=0.1.0"
+  },
+  "license": "MIT"
+}
