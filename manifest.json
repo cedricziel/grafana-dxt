@@ -6,22 +6,53 @@
   "author": {
     "name": "Cedric Ziel"
   },
+  "user_config": {
+    "grafana_url": {
+      "type": "string",
+      "title": "Grafana URL",
+      "description": "The URL of your Grafana instance (e.g., https://myinstance.grafana.net)",
+      "required": true,
+      "default": "http://localhost:3000"
+    },
+    "grafana_service_account_token": {
+      "type": "string",
+      "title": "Grafana Service Account Token",
+      "description": "Service account token for authenticating with Grafana",
+      "required": true,
+      "sensitive": true
+    }
+  },
   "server": {
     "type": "binary",
     "entry_point": "server/mcp-grafana",
     "mcp_config": {
       "command": "${__dirname}/server/mcp-grafana",
       "args": [],
-      "env": {},
+      "env": {
+        "GRAFANA_URL": "${grafana_url}",
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${grafana_service_account_token}"
+      },
       "platform_overrides": {
         "darwin": {
-          "command": "${__dirname}/server/mcp-grafana-darwin"
+          "command": "${__dirname}/server/mcp-grafana-darwin",
+          "env": {
+            "GRAFANA_URL": "${grafana_url}",
+            "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${grafana_service_account_token}"
+          }
         },
         "linux": {
-          "command": "${__dirname}/server/mcp-grafana-linux"
+          "command": "${__dirname}/server/mcp-grafana-linux",
+          "env": {
+            "GRAFANA_URL": "${grafana_url}",
+            "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${grafana_service_account_token}"
+          }
         },
         "win32": {
-          "command": "${__dirname}/server/mcp-grafana-windows.exe"
+          "command": "${__dirname}/server/mcp-grafana-windows.exe",
+          "env": {
+            "GRAFANA_URL": "${grafana_url}",
+            "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${grafana_service_account_token}"
+          }
         }
       }
     }
