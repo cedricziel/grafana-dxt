@@ -6,6 +6,10 @@ GITHUB_API_URL := https://api.github.com/repos/grafana/mcp-grafana/releases/late
 SERVER_DIR := server
 BINARY_NAME := mcp-grafana
 VERSION_FILE := VERSION
+OUTPUT_DIR := dist
+
+# Read version from VERSION file
+CURRENT_VERSION := $(shell cat $(VERSION_FILE) 2>/dev/null || echo "v0.6.4")
 
 # Platform detection
 UNAME_S := $(shell uname -s)
@@ -37,14 +41,28 @@ endif
 # Build the download filename
 DOWNLOAD_FILE := $(BINARY_NAME)_$(OS)_$(ARCH).tar.gz
 
-# Default target
+# Default target - complete build pipeline
 .PHONY: all
-all: download update-version
-	@echo "✅ Successfully downloaded and configured Grafana MCP server"
+all: clean download-all-platforms package
+	@echo "✅ Successfully built and packaged Grafana DXT extension!"
+	@echo "📦 Package created: grafana-dxt-$(CURRENT_VERSION).dxt"
 
-# Get the latest version from GitHub
-.PHONY: get-latest-version
-get-latest-version:
+# Build target (alias for all)
+.PHONY: build
+build: all
+
+# Dist target (alias for all)
+.PHONY: dist
+dist: all
+
+# Get the current version from VERSION file
+.PHONY: get-version
+get-version:
+	@echo "📦 Using version: $(CURRENT_VERSION)"
+
+# Fetch and update to the latest version from GitHub
+.PHONY: update-latest
+update-latest:
 	@echo "🔍 Fetching latest version from GitHub..."
 	$(eval LATEST_VERSION := $(shell curl -s $(GITHUB_API_URL) | grep '"tag_name":' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/'))
 	@if [ -z "$(LATEST_VERSION)" ]; then \
@@ -52,135 +70,112 @@ get-latest-version:
 		exit 1; \
 	fi
 	@echo "📦 Latest version: $(LATEST_VERSION)"
+	@echo "📝 Updating VERSION file to $(LATEST_VERSION)..."
+	@echo $(LATEST_VERSION) > $(VERSION_FILE)
+	@if command -v jq >/dev/null 2>&1; then \
+		jq '.version = "$(LATEST_VERSION)"' manifest.json > manifest.json.tmp && mv manifest.json.tmp manifest.json; \
+	else \
+		sed -i.bak 's/"version": *"[^"]*"/"version": "$(LATEST_VERSION)"/' manifest.json && rm manifest.json.bak; \
+	fi
+	@echo "✅ Updated to version $(LATEST_VERSION)"
 
-# Download the latest Grafana MCP server for current platform
+# Download the Grafana MCP server for current platform
 .PHONY: download
-download: get-latest-version
-	@echo "⬇️  Downloading Grafana MCP server $(LATEST_VERSION) for $(OS) $(ARCH)..."
+download:
+	@echo "⬇️  Downloading Grafana MCP server $(CURRENT_VERSION) for $(OS) $(ARCH)..."
 	@mkdir -p $(SERVER_DIR)
-	$(eval DOWNLOAD_URL := https://github.com/grafana/mcp-grafana/releases/download/$(LATEST_VERSION)/$(DOWNLOAD_FILE))
+	$(eval DOWNLOAD_URL := https://github.com/grafana/mcp-grafana/releases/download/$(CURRENT_VERSION)/$(DOWNLOAD_FILE))
 	@curl -L -o /tmp/$(DOWNLOAD_FILE) $(DOWNLOAD_URL)
 	@echo "📂 Extracting to $(SERVER_DIR)..."
 	@tar -xzf /tmp/$(DOWNLOAD_FILE) -C $(SERVER_DIR)
 	@rm /tmp/$(DOWNLOAD_FILE)
 	@mv $(SERVER_DIR)/$(BINARY_NAME) $(SERVER_DIR)/$(BINARY_NAME)-$(PLATFORM)
 	@chmod +x $(SERVER_DIR)/$(BINARY_NAME)-$(PLATFORM)
-	@echo "✅ Downloaded $(BINARY_NAME)-$(PLATFORM) $(LATEST_VERSION)"
+	@echo "✅ Downloaded $(BINARY_NAME)-$(PLATFORM) $(CURRENT_VERSION)"
 
 # Download binaries for all platforms
 .PHONY: download-all-platforms
-download-all-platforms: get-latest-version download-darwin-x86_64 download-darwin-arm64 download-linux-x86_64 download-linux-arm64 download-windows-x86_64
+download-all-platforms: download-darwin download-linux download-windows
 	@echo "✅ Downloaded binaries for all platforms"
 
-# Download Darwin x86_64
-.PHONY: download-darwin-x86_64
-download-darwin-x86_64: get-latest-version
-	@echo "⬇️  Downloading Darwin x86_64 binary..."
+# Download Darwin binary (auto-detect architecture)
+.PHONY: download-darwin
+download-darwin:
+	@echo "⬇️  Downloading Darwin $(ARCH) binary ($(CURRENT_VERSION))..."
 	@mkdir -p $(SERVER_DIR)
-	@curl -L -o /tmp/$(BINARY_NAME)_Darwin_x86_64.tar.gz \
-		https://github.com/grafana/mcp-grafana/releases/download/$(LATEST_VERSION)/$(BINARY_NAME)_Darwin_x86_64.tar.gz
-	@tar -xzf /tmp/$(BINARY_NAME)_Darwin_x86_64.tar.gz -C /tmp
-	@mv /tmp/$(BINARY_NAME) $(SERVER_DIR)/$(BINARY_NAME)-darwin-x86_64
-	@chmod +x $(SERVER_DIR)/$(BINARY_NAME)-darwin-x86_64
-	@rm /tmp/$(BINARY_NAME)_Darwin_x86_64.tar.gz
+	@curl -L -o /tmp/$(BINARY_NAME)_Darwin_$(ARCH).tar.gz \
+		https://github.com/grafana/mcp-grafana/releases/download/$(CURRENT_VERSION)/$(BINARY_NAME)_Darwin_$(ARCH).tar.gz
+	@tar -xzf /tmp/$(BINARY_NAME)_Darwin_$(ARCH).tar.gz -C /tmp
+	@mv /tmp/$(BINARY_NAME) $(SERVER_DIR)/$(BINARY_NAME)-darwin
+	@chmod +x $(SERVER_DIR)/$(BINARY_NAME)-darwin
+	@rm /tmp/$(BINARY_NAME)_Darwin_$(ARCH).tar.gz
 	@rm -f /tmp/LICENSE /tmp/README.md
-	@echo "✅ Downloaded Darwin x86_64"
+	@echo "✅ Downloaded Darwin $(ARCH)"
 
-# Download Darwin arm64
-.PHONY: download-darwin-arm64
-download-darwin-arm64: get-latest-version
-	@echo "⬇️  Downloading Darwin arm64 binary..."
-	@mkdir -p $(SERVER_DIR)
-	@curl -L -o /tmp/$(BINARY_NAME)_Darwin_arm64.tar.gz \
-		https://github.com/grafana/mcp-grafana/releases/download/$(LATEST_VERSION)/$(BINARY_NAME)_Darwin_arm64.tar.gz
-	@tar -xzf /tmp/$(BINARY_NAME)_Darwin_arm64.tar.gz -C /tmp
-	@mv /tmp/$(BINARY_NAME) $(SERVER_DIR)/$(BINARY_NAME)-darwin-arm64
-	@chmod +x $(SERVER_DIR)/$(BINARY_NAME)-darwin-arm64
-	@rm /tmp/$(BINARY_NAME)_Darwin_arm64.tar.gz
-	@rm -f /tmp/LICENSE /tmp/README.md
-	@echo "✅ Downloaded Darwin arm64"
-
-# Download Linux x86_64
-.PHONY: download-linux-x86_64
-download-linux-x86_64: get-latest-version
-	@echo "⬇️  Downloading Linux x86_64 binary..."
+# Download Linux binary (x86_64 by default as most common)
+.PHONY: download-linux
+download-linux:
+	@echo "⬇️  Downloading Linux x86_64 binary ($(CURRENT_VERSION))..."
 	@mkdir -p $(SERVER_DIR)
 	@curl -L -o /tmp/$(BINARY_NAME)_Linux_x86_64.tar.gz \
-		https://github.com/grafana/mcp-grafana/releases/download/$(LATEST_VERSION)/$(BINARY_NAME)_Linux_x86_64.tar.gz
+		https://github.com/grafana/mcp-grafana/releases/download/$(CURRENT_VERSION)/$(BINARY_NAME)_Linux_x86_64.tar.gz
 	@tar -xzf /tmp/$(BINARY_NAME)_Linux_x86_64.tar.gz -C /tmp
-	@mv /tmp/$(BINARY_NAME) $(SERVER_DIR)/$(BINARY_NAME)-linux-x86_64
-	@chmod +x $(SERVER_DIR)/$(BINARY_NAME)-linux-x86_64
+	@mv /tmp/$(BINARY_NAME) $(SERVER_DIR)/$(BINARY_NAME)-linux
+	@chmod +x $(SERVER_DIR)/$(BINARY_NAME)-linux
 	@rm /tmp/$(BINARY_NAME)_Linux_x86_64.tar.gz
 	@rm -f /tmp/LICENSE /tmp/README.md
 	@echo "✅ Downloaded Linux x86_64"
 
-# Download Linux arm64
-.PHONY: download-linux-arm64
-download-linux-arm64: get-latest-version
-	@echo "⬇️  Downloading Linux arm64 binary..."
+# Download Windows binary (x86_64)
+.PHONY: download-windows
+download-windows:
+	@echo "⬇️  Downloading Windows x86_64 binary ($(CURRENT_VERSION))..."
 	@mkdir -p $(SERVER_DIR)
-	@curl -L -o /tmp/$(BINARY_NAME)_Linux_arm64.tar.gz \
-		https://github.com/grafana/mcp-grafana/releases/download/$(LATEST_VERSION)/$(BINARY_NAME)_Linux_arm64.tar.gz
-	@tar -xzf /tmp/$(BINARY_NAME)_Linux_arm64.tar.gz -C /tmp
-	@mv /tmp/$(BINARY_NAME) $(SERVER_DIR)/$(BINARY_NAME)-linux-arm64
-	@chmod +x $(SERVER_DIR)/$(BINARY_NAME)-linux-arm64
-	@rm /tmp/$(BINARY_NAME)_Linux_arm64.tar.gz
-	@rm -f /tmp/LICENSE /tmp/README.md
-	@echo "✅ Downloaded Linux arm64"
-
-# Download Windows x86_64
-.PHONY: download-windows-x86_64
-download-windows-x86_64: get-latest-version
-	@echo "⬇️  Downloading Windows x86_64 binary..."
-	@mkdir -p $(SERVER_DIR)
-	@curl -L -o /tmp/$(BINARY_NAME)_Windows_x86_64.tar.gz \
-		https://github.com/grafana/mcp-grafana/releases/download/$(LATEST_VERSION)/$(BINARY_NAME)_Windows_x86_64.tar.gz
-	@tar -xzf /tmp/$(BINARY_NAME)_Windows_x86_64.tar.gz -C /tmp
-	@mv /tmp/$(BINARY_NAME).exe $(SERVER_DIR)/$(BINARY_NAME)-windows-x86_64.exe
-	@rm /tmp/$(BINARY_NAME)_Windows_x86_64.tar.gz
+	@curl -L -o /tmp/$(BINARY_NAME)_Windows_x86_64.zip \
+		https://github.com/grafana/mcp-grafana/releases/download/$(CURRENT_VERSION)/$(BINARY_NAME)_Windows_x86_64.zip
+	@unzip -q -o /tmp/$(BINARY_NAME)_Windows_x86_64.zip -d /tmp
+	@mv /tmp/$(BINARY_NAME).exe $(SERVER_DIR)/$(BINARY_NAME)-windows.exe
+	@rm /tmp/$(BINARY_NAME)_Windows_x86_64.zip
 	@rm -f /tmp/LICENSE /tmp/README.md
 	@echo "✅ Downloaded Windows x86_64"
 
-# Create platform-specific symlinks for current platform
-.PHONY: link-platform-binaries
-link-platform-binaries:
-	@echo "🔗 Creating platform-specific symlinks..."
-	@if [ "$(PLATFORM)" = "darwin" ]; then \
-		if [ -f $(SERVER_DIR)/$(BINARY_NAME)-darwin-$(ARCH) ]; then \
-			ln -sf $(BINARY_NAME)-darwin-$(ARCH) $(SERVER_DIR)/$(BINARY_NAME)-darwin; \
-			echo "✅ Created symlink for Darwin"; \
-		fi \
-	elif [ "$(PLATFORM)" = "linux" ]; then \
-		if [ -f $(SERVER_DIR)/$(BINARY_NAME)-linux-$(ARCH) ]; then \
-			ln -sf $(BINARY_NAME)-linux-$(ARCH) $(SERVER_DIR)/$(BINARY_NAME)-linux; \
-			echo "✅ Created symlink for Linux"; \
-		fi \
-	fi
-	@if [ -f $(SERVER_DIR)/$(BINARY_NAME)-windows-x86_64.exe ]; then \
-		ln -sf $(BINARY_NAME)-windows-x86_64.exe $(SERVER_DIR)/$(BINARY_NAME)-windows.exe; \
-		echo "✅ Created symlink for Windows"; \
-	fi
+# Note: Additional architecture-specific targets can be added if needed
+# For now, we download: Darwin (current arch), Linux (x86_64), Windows (x86_64)
 
-# Update version in manifest.json and VERSION file
-.PHONY: update-version
-update-version: get-latest-version
-	@echo "📝 Updating version to $(LATEST_VERSION)..."
-	@echo $(LATEST_VERSION) > $(VERSION_FILE)
+# Sync manifest.json version with VERSION file
+.PHONY: sync-version
+sync-version:
+	@echo "📝 Syncing manifest.json with version $(CURRENT_VERSION)..."
 	@if command -v jq >/dev/null 2>&1; then \
-		jq '.version = "$(LATEST_VERSION)"' manifest.json > manifest.json.tmp && mv manifest.json.tmp manifest.json; \
+		jq '.version = "$(CURRENT_VERSION)"' manifest.json > manifest.json.tmp && mv manifest.json.tmp manifest.json; \
 		echo "✅ Updated manifest.json using jq"; \
 	else \
-		sed -i.bak 's/"version": *"[^"]*"/"version": "$(LATEST_VERSION)"/' manifest.json && rm manifest.json.bak; \
+		sed -i.bak 's/"version": *"[^"]*"/"version": "$(CURRENT_VERSION)"/' manifest.json && rm manifest.json.bak; \
 		echo "✅ Updated manifest.json using sed"; \
 	fi
-	@echo "✅ Version updated to $(LATEST_VERSION)"
 
-# Clean downloaded files
+# Validate the extension manifest and structure
+.PHONY: validate
+validate:
+	@echo "🔍 Validating extension manifest..."
+	@dxt validate manifest.json
+	@echo "✅ Validation passed"
+
+# Package the extension using dxt
+.PHONY: package
+package: sync-version validate
+	@echo "📦 Packaging extension version $(CURRENT_VERSION)..."
+	@mkdir -p $(OUTPUT_DIR)
+	@dxt pack . $(OUTPUT_DIR)/grafana-dxt-$(CURRENT_VERSION).dxt
+	@echo "✅ Package created: $(OUTPUT_DIR)/grafana-dxt-$(CURRENT_VERSION).dxt"
+	@ls -lh $(OUTPUT_DIR)/grafana-dxt-$(CURRENT_VERSION).dxt
+
+# Clean downloaded files and dist directory (preserves VERSION file)
 .PHONY: clean
 clean:
 	@echo "🧹 Cleaning up..."
 	@rm -f $(SERVER_DIR)/$(BINARY_NAME)-*
-	@rm -f $(VERSION_FILE)
+	@rm -rf $(OUTPUT_DIR)
 	@echo "✅ Cleaned up"
 
 # Show current version
@@ -215,17 +210,24 @@ info:
 help:
 	@echo "Grafana DXT Makefile - Available targets:"
 	@echo ""
-	@echo "  make all                     - Download latest version for current platform and update configs (default)"
-	@echo "  make download                - Download the latest Grafana MCP server binary for current platform"
+	@echo "🚀 Main Targets:"
+	@echo "  make                         - Build pipeline: clean, download all, package (uses VERSION file)"
+	@echo "  make build                   - Alias for 'make all'"
+	@echo "  make dist                    - Alias for 'make all'"
+	@echo "  make package                 - Create DXT package from current state"
+	@echo ""
+	@echo "📦 Download Targets (uses version from VERSION file):"
+	@echo "  make download                - Download Grafana MCP server for current platform"
 	@echo "  make download-all-platforms  - Download binaries for all supported platforms"
-	@echo "  make download-darwin-x86_64  - Download Darwin x86_64 binary"
-	@echo "  make download-darwin-arm64   - Download Darwin arm64 binary"
-	@echo "  make download-linux-x86_64   - Download Linux x86_64 binary"
-	@echo "  make download-linux-arm64    - Download Linux arm64 binary"
-	@echo "  make download-windows-x86_64 - Download Windows x86_64 binary"
-	@echo "  make link-platform-binaries  - Create platform-specific symlinks"
-	@echo "  make update-version          - Update version in manifest.json and VERSION file"
-	@echo "  make clean                   - Remove all downloaded binaries and VERSION file"
+	@echo "  make download-darwin          - Download Darwin binary (auto-detects architecture)"
+	@echo "  make download-linux           - Download Linux x86_64 binary"
+	@echo "  make download-windows         - Download Windows x86_64 binary"
+	@echo ""
+	@echo "🔧 Utility Targets:"
+	@echo "  make validate                - Validate extension manifest and structure"
+	@echo "  make update-latest           - Update VERSION file to latest GitHub release"
+	@echo "  make sync-version            - Sync manifest.json with VERSION file"
+	@echo "  make clean                   - Remove downloaded binaries and dist (preserves VERSION)"
 	@echo "  make version                 - Show current installed version"
 	@echo "  make info                    - Show platform and version information"
 	@echo "  make help                    - Show this help message"
