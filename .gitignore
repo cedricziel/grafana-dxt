@@ -1,3 +1,36 @@
+# Build artifacts
+dist/
 *.dxt
+
+# Claude settings
 .claude/*.local.json
-/dist
+
+# Downloaded binaries
+server/mcp-grafana*
+server/*.exe
+
+# Keep server directory structure files
+!server/.gitkeep
+!server/LICENSE
+!server/README.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Temporary files
+*.tmp
+*.bak
+
+# Node modules (if any future dependencies)
+node_modules/
+
+# Log files
+*.log
