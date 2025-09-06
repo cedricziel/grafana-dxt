@@ -1,0 +1,51 @@
+name: Build DXT
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build DXT Package
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dxt CLI
+        run: npm install -g @desktopextensions/dxt-cli
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make curl unzip
+
+      - name: Build DXT package
+        run: make
+
+      - name: Get version
+        run: |
+          VERSION=$(cat VERSION)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Upload DXT artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: grafana-dxt-${{ env.VERSION }}
+          path: dist/grafana-dxt-*.dxt
+          retention-days: 7
+
+      - name: Print build info
+        run: |
+          echo "Build completed successfully!"
+          echo "Version: $(cat VERSION)"
+          echo "Package: $(ls dist/*.dxt)"
+          echo "Size: $(ls -lh dist/*.dxt | awk '{print $5}')"
