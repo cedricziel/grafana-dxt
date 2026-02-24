@@ -1,15 +1,34 @@
-name: Build and Release DXT Extension
+name: Release
 
 on:
-  release:
-    types: [created]
-  workflow_dispatch:  # Allow manual triggering for testing
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
-  build:
-    name: Build and Upload DXT Package
+  release-please:
+    name: Release Please
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+      upload_url: ${{ steps.release.outputs.upload_url }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
 
+  build-and-upload:
+    name: Build and Upload DXT Package
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -50,40 +69,20 @@ jobs:
           cat grafana-dxt-${{ env.VERSION }}.dxt.sha256
 
       - name: Upload DXT package to release
-        if: github.event_name == 'release'
-        uses: actions/upload-release-asset@v1
+        run: gh release upload ${{ needs.release-please.outputs.tag_name }} ./dist/grafana-dxt-${{ env.VERSION }}.dxt
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./dist/grafana-dxt-${{ env.VERSION }}.dxt
-          asset_name: grafana-dxt-${{ env.VERSION }}.dxt
-          asset_content_type: application/octet-stream
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload checksum to release
-        if: github.event_name == 'release'
-        uses: actions/upload-release-asset@v1
+        run: gh release upload ${{ needs.release-please.outputs.tag_name }} ./dist/grafana-dxt-${{ env.VERSION }}.dxt.sha256
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./dist/grafana-dxt-${{ env.VERSION }}.dxt.sha256
-          asset_name: grafana-dxt-${{ env.VERSION }}.dxt.sha256
-          asset_content_type: text/plain
-
-      - name: Upload artifacts for workflow runs
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v6
-        with:
-          name: grafana-dxt-${{ env.VERSION }}
-          path: |
-            dist/grafana-dxt-${{ env.VERSION }}.dxt
-            dist/grafana-dxt-${{ env.VERSION }}.dxt.sha256
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Print build summary
         run: |
           echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release**: ${{ needs.release-please.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: ${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Package**: grafana-dxt-${{ env.VERSION }}.dxt" >> $GITHUB_STEP_SUMMARY
           echo "- **Size**: $(ls -lh dist/grafana-dxt-${{ env.VERSION }}.dxt | awk '{print $5}')" >> $GITHUB_STEP_SUMMARY
