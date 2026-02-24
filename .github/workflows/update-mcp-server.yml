@@ -1,0 +1,82 @@
+name: Update Grafana MCP Server
+
+on:
+  schedule:
+    # Run daily at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    name: Check for MCP Server Updates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Install dxt CLI
+        run: npm install -g @anthropic-ai/dxt
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make curl jq unzip
+
+      - name: Check for new version
+        id: check
+        run: |
+          CURRENT_VERSION=$(cat VERSION)
+          echo "current=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
+
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/grafana/mcp-grafana/releases/latest | jq -r '.tag_name')
+          echo "latest=${LATEST_VERSION}" >> $GITHUB_OUTPUT
+
+          if [ "${CURRENT_VERSION}" = "${LATEST_VERSION}" ]; then
+            echo "up_to_date=true" >> $GITHUB_OUTPUT
+            echo "Already up to date: ${CURRENT_VERSION}"
+          else
+            echo "up_to_date=false" >> $GITHUB_OUTPUT
+            echo "Update available: ${CURRENT_VERSION} -> ${LATEST_VERSION}"
+          fi
+
+      - name: Update version files
+        if: steps.check.outputs.up_to_date == 'false'
+        run: |
+          echo "${{ steps.check.outputs.latest }}" > VERSION
+          jq '.version = "${{ steps.check.outputs.latest }}"' manifest.json > manifest.json.tmp && mv manifest.json.tmp manifest.json
+
+      - name: Validate new version
+        if: steps.check.outputs.up_to_date == 'false'
+        run: |
+          make download-all-platforms
+          make validate
+
+      - name: Clean up binaries
+        if: steps.check.outputs.up_to_date == 'false'
+        run: make clean
+
+      - name: Create pull request
+        if: steps.check.outputs.up_to_date == 'false'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore(deps): update grafana mcp server to ${{ steps.check.outputs.latest }}"
+          title: "chore(deps): update grafana mcp server to ${{ steps.check.outputs.latest }}"
+          body: |
+            Updates the Grafana MCP server from `${{ steps.check.outputs.current }}` to `${{ steps.check.outputs.latest }}`.
+
+            Release: https://github.com/grafana/mcp-grafana/releases/tag/${{ steps.check.outputs.latest }}
+
+            ---
+            *This PR was automatically created by the update-mcp-server workflow.*
+          branch: chore/update-mcp-grafana-${{ steps.check.outputs.latest }}
+          labels: dependencies
