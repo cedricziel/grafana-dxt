@@ -5,11 +5,14 @@
 GITHUB_API_URL := https://api.github.com/repos/grafana/mcp-grafana/releases/latest
 SERVER_DIR := server
 BINARY_NAME := mcp-grafana
-VERSION_FILE := VERSION
+UPSTREAM_VERSION_FILE := UPSTREAM_VERSION
 OUTPUT_DIR := dist
 
-# Read version from VERSION file
-CURRENT_VERSION := $(shell cat $(VERSION_FILE) 2>/dev/null || echo "v0.6.4")
+# Upstream mcp-grafana server version (used for downloading binaries)
+UPSTREAM_VERSION := $(shell cat $(UPSTREAM_VERSION_FILE) 2>/dev/null || echo "v0.6.4")
+
+# DXT extension version (read from manifest.json)
+DXT_VERSION := $(shell grep -o '"version": *"[^"]*"' manifest.json | head -1 | sed 's/"version": *"//;s/"//')
 
 # Platform detection
 UNAME_S := $(shell uname -s)
@@ -45,7 +48,7 @@ DOWNLOAD_FILE := $(BINARY_NAME)_$(OS)_$(ARCH).tar.gz
 .PHONY: all
 all: clean download-all-platforms package
 	@echo "✅ Successfully built and packaged Grafana DXT extension!"
-	@echo "📦 Package created: grafana-dxt-$(CURRENT_VERSION).dxt"
+	@echo "📦 DXT v$(DXT_VERSION) with mcp-grafana $(UPSTREAM_VERSION)"
 
 # Build target (alias for all)
 .PHONY: build
@@ -55,43 +58,40 @@ build: all
 .PHONY: dist
 dist: all
 
-# Get the current version from VERSION file
+# Get the current versions
 .PHONY: get-version
 get-version:
-	@echo "📦 Using version: $(CURRENT_VERSION)"
+	@echo "📦 DXT extension version: $(DXT_VERSION)"
+	@echo "📦 Upstream mcp-grafana version: $(UPSTREAM_VERSION)"
 
-# Fetch and update to the latest version from GitHub
+# Fetch and update to the latest upstream mcp-grafana version from GitHub
 .PHONY: update-latest
 update-latest:
-	@echo "🔍 Fetching latest version from GitHub..."
+	@echo "🔍 Fetching latest mcp-grafana version from GitHub..."
 	$(eval LATEST_VERSION := $(shell curl -s $(GITHUB_API_URL) | grep '"tag_name":' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/'))
 	@if [ -z "$(LATEST_VERSION)" ]; then \
 		echo "❌ Failed to fetch latest version from GitHub"; \
 		exit 1; \
 	fi
-	@echo "📦 Latest version: $(LATEST_VERSION)"
-	@echo "📝 Updating VERSION file to $(LATEST_VERSION)..."
-	@echo $(LATEST_VERSION) > $(VERSION_FILE)
-	@if command -v jq >/dev/null 2>&1; then \
-		jq '.version = "$(LATEST_VERSION)"' manifest.json > manifest.json.tmp && mv manifest.json.tmp manifest.json; \
-	else \
-		sed -i.bak 's/"version": *"[^"]*"/"version": "$(LATEST_VERSION)"/' manifest.json && rm manifest.json.bak; \
-	fi
-	@echo "✅ Updated to version $(LATEST_VERSION)"
+	@echo "📦 Latest upstream version: $(LATEST_VERSION)"
+	@echo "📝 Updating UPSTREAM_VERSION file to $(LATEST_VERSION)..."
+	@echo $(LATEST_VERSION) > $(UPSTREAM_VERSION_FILE)
+	@echo "✅ Updated upstream mcp-grafana to $(LATEST_VERSION)"
+	@echo "ℹ️  DXT extension version ($(DXT_VERSION)) is unchanged — update manifest.json to bump it"
 
 # Download the Grafana MCP server for current platform
 .PHONY: download
 download:
-	@echo "⬇️  Downloading Grafana MCP server $(CURRENT_VERSION) for $(OS) $(ARCH)..."
+	@echo "⬇️  Downloading Grafana MCP server $(UPSTREAM_VERSION) for $(OS) $(ARCH)..."
 	@mkdir -p $(SERVER_DIR)
-	$(eval DOWNLOAD_URL := https://github.com/grafana/mcp-grafana/releases/download/$(CURRENT_VERSION)/$(DOWNLOAD_FILE))
+	$(eval DOWNLOAD_URL := https://github.com/grafana/mcp-grafana/releases/download/$(UPSTREAM_VERSION)/$(DOWNLOAD_FILE))
 	@curl -L -o /tmp/$(DOWNLOAD_FILE) $(DOWNLOAD_URL)
 	@echo "📂 Extracting to $(SERVER_DIR)..."
 	@tar -xzf /tmp/$(DOWNLOAD_FILE) -C $(SERVER_DIR)
 	@rm /tmp/$(DOWNLOAD_FILE)
 	@mv $(SERVER_DIR)/$(BINARY_NAME) $(SERVER_DIR)/$(BINARY_NAME)-$(PLATFORM)
 	@chmod +x $(SERVER_DIR)/$(BINARY_NAME)-$(PLATFORM)
-	@echo "✅ Downloaded $(BINARY_NAME)-$(PLATFORM) $(CURRENT_VERSION)"
+	@echo "✅ Downloaded $(BINARY_NAME)-$(PLATFORM) $(UPSTREAM_VERSION)"
 
 # Download binaries for all platforms
 .PHONY: download-all-platforms
@@ -101,10 +101,10 @@ download-all-platforms: download-darwin download-linux download-windows
 # Download Darwin binary (auto-detect architecture)
 .PHONY: download-darwin
 download-darwin:
-	@echo "⬇️  Downloading Darwin $(ARCH) binary ($(CURRENT_VERSION))..."
+	@echo "⬇️  Downloading Darwin $(ARCH) binary ($(UPSTREAM_VERSION))..."
 	@mkdir -p $(SERVER_DIR)
 	@curl -L -o /tmp/$(BINARY_NAME)_Darwin_$(ARCH).tar.gz \
-		https://github.com/grafana/mcp-grafana/releases/download/$(CURRENT_VERSION)/$(BINARY_NAME)_Darwin_$(ARCH).tar.gz
+		https://github.com/grafana/mcp-grafana/releases/download/$(UPSTREAM_VERSION)/$(BINARY_NAME)_Darwin_$(ARCH).tar.gz
 	@tar -xzf /tmp/$(BINARY_NAME)_Darwin_$(ARCH).tar.gz -C /tmp
 	@mv /tmp/$(BINARY_NAME) $(SERVER_DIR)/$(BINARY_NAME)-darwin
 	@chmod +x $(SERVER_DIR)/$(BINARY_NAME)-darwin
@@ -115,10 +115,10 @@ download-darwin:
 # Download Linux binary (x86_64 by default as most common)
 .PHONY: download-linux
 download-linux:
-	@echo "⬇️  Downloading Linux x86_64 binary ($(CURRENT_VERSION))..."
+	@echo "⬇️  Downloading Linux x86_64 binary ($(UPSTREAM_VERSION))..."
 	@mkdir -p $(SERVER_DIR)
 	@curl -L -o /tmp/$(BINARY_NAME)_Linux_x86_64.tar.gz \
-		https://github.com/grafana/mcp-grafana/releases/download/$(CURRENT_VERSION)/$(BINARY_NAME)_Linux_x86_64.tar.gz
+		https://github.com/grafana/mcp-grafana/releases/download/$(UPSTREAM_VERSION)/$(BINARY_NAME)_Linux_x86_64.tar.gz
 	@tar -xzf /tmp/$(BINARY_NAME)_Linux_x86_64.tar.gz -C /tmp
 	@mv /tmp/$(BINARY_NAME) $(SERVER_DIR)/$(BINARY_NAME)-linux
 	@chmod +x $(SERVER_DIR)/$(BINARY_NAME)-linux
@@ -129,10 +129,10 @@ download-linux:
 # Download Windows binary (x86_64)
 .PHONY: download-windows
 download-windows:
-	@echo "⬇️  Downloading Windows x86_64 binary ($(CURRENT_VERSION))..."
+	@echo "⬇️  Downloading Windows x86_64 binary ($(UPSTREAM_VERSION))..."
 	@mkdir -p $(SERVER_DIR)
 	@curl -L -o /tmp/$(BINARY_NAME)_Windows_x86_64.zip \
-		https://github.com/grafana/mcp-grafana/releases/download/$(CURRENT_VERSION)/$(BINARY_NAME)_Windows_x86_64.zip
+		https://github.com/grafana/mcp-grafana/releases/download/$(UPSTREAM_VERSION)/$(BINARY_NAME)_Windows_x86_64.zip
 	@unzip -q -o /tmp/$(BINARY_NAME)_Windows_x86_64.zip -d /tmp
 	@mv /tmp/$(BINARY_NAME).exe $(SERVER_DIR)/$(BINARY_NAME)-windows.exe
 	@rm /tmp/$(BINARY_NAME)_Windows_x86_64.zip
@@ -142,15 +142,20 @@ download-windows:
 # Note: Additional architecture-specific targets can be added if needed
 # For now, we download: Darwin (current arch), Linux (x86_64), Windows (x86_64)
 
-# Sync manifest.json version with VERSION file
-.PHONY: sync-version
-sync-version:
-	@echo "📝 Syncing manifest.json with version $(CURRENT_VERSION)..."
+# Set the DXT extension version in manifest.json (for use in CI or manual bumps)
+# Usage: make set-dxt-version DXT_NEW_VERSION=1.2.3
+.PHONY: set-dxt-version
+set-dxt-version:
+	@if [ -z "$(DXT_NEW_VERSION)" ]; then \
+		echo "❌ Usage: make set-dxt-version DXT_NEW_VERSION=1.2.3"; \
+		exit 1; \
+	fi
+	@echo "📝 Setting DXT extension version to $(DXT_NEW_VERSION)..."
 	@if command -v jq >/dev/null 2>&1; then \
-		jq '.version = "$(CURRENT_VERSION)"' manifest.json > manifest.json.tmp && mv manifest.json.tmp manifest.json; \
+		jq '.version = "$(DXT_NEW_VERSION)"' manifest.json > manifest.json.tmp && mv manifest.json.tmp manifest.json; \
 		echo "✅ Updated manifest.json using jq"; \
 	else \
-		sed -i.bak 's/"version": *"[^"]*"/"version": "$(CURRENT_VERSION)"/' manifest.json && rm manifest.json.bak; \
+		sed -i.bak 's/"version": *"[^"]*"/"version": "$(DXT_NEW_VERSION)"/' manifest.json && rm manifest.json.bak; \
 		echo "✅ Updated manifest.json using sed"; \
 	fi
 
@@ -163,14 +168,14 @@ validate:
 
 # Package the extension using dxt
 .PHONY: package
-package: sync-version validate
-	@echo "📦 Packaging extension version $(CURRENT_VERSION)..."
+package: validate
+	@echo "📦 Packaging DXT extension $(DXT_VERSION) (mcp-grafana $(UPSTREAM_VERSION))..."
 	@mkdir -p $(OUTPUT_DIR)
-	@dxt pack . $(OUTPUT_DIR)/grafana-dxt-$(CURRENT_VERSION).dxt
-	@echo "✅ Package created: $(OUTPUT_DIR)/grafana-dxt-$(CURRENT_VERSION).dxt"
-	@ls -lh $(OUTPUT_DIR)/grafana-dxt-$(CURRENT_VERSION).dxt
+	@dxt pack . $(OUTPUT_DIR)/grafana-dxt-$(DXT_VERSION).dxt
+	@echo "✅ Package created: $(OUTPUT_DIR)/grafana-dxt-$(DXT_VERSION).dxt"
+	@ls -lh $(OUTPUT_DIR)/grafana-dxt-$(DXT_VERSION).dxt
 
-# Clean downloaded files and dist directory (preserves VERSION file)
+# Clean downloaded files and dist directory
 .PHONY: clean
 clean:
 	@echo "🧹 Cleaning up..."
@@ -178,13 +183,14 @@ clean:
 	@rm -rf $(OUTPUT_DIR)
 	@echo "✅ Cleaned up"
 
-# Show current version
+# Show current versions
 .PHONY: version
 version:
-	@if [ -f $(VERSION_FILE) ]; then \
-		echo "Current version: $$(cat $(VERSION_FILE))"; \
+	@echo "DXT extension version: $(DXT_VERSION) (from manifest.json)"
+	@if [ -f $(UPSTREAM_VERSION_FILE) ]; then \
+		echo "Upstream mcp-grafana version: $$(cat $(UPSTREAM_VERSION_FILE))"; \
 	else \
-		echo "No version file found. Run 'make download' to get started."; \
+		echo "No UPSTREAM_VERSION file found. Run 'make update-latest' to get started."; \
 	fi
 
 # Show platform information
@@ -196,10 +202,11 @@ info:
 	@echo "  Architecture: $(ARCH)"
 	@echo "  Download file: $(DOWNLOAD_FILE)"
 	@echo ""
-	@if [ -f $(VERSION_FILE) ]; then \
-		echo "Current version: $$(cat $(VERSION_FILE))"; \
+	@echo "  DXT version: $(DXT_VERSION)"
+	@if [ -f $(UPSTREAM_VERSION_FILE) ]; then \
+		echo "  Upstream mcp-grafana: $$(cat $(UPSTREAM_VERSION_FILE))"; \
 	else \
-		echo "No version installed yet"; \
+		echo "  Upstream mcp-grafana: not set"; \
 	fi
 	@echo ""
 	@echo "Available binaries in $(SERVER_DIR):"
@@ -211,12 +218,12 @@ help:
 	@echo "Grafana DXT Makefile - Available targets:"
 	@echo ""
 	@echo "🚀 Main Targets:"
-	@echo "  make                         - Build pipeline: clean, download all, package (uses VERSION file)"
+	@echo "  make                         - Build pipeline: clean, download all, package"
 	@echo "  make build                   - Alias for 'make all'"
 	@echo "  make dist                    - Alias for 'make all'"
 	@echo "  make package                 - Create DXT package from current state"
 	@echo ""
-	@echo "📦 Download Targets (uses version from VERSION file):"
+	@echo "📦 Download Targets (uses version from UPSTREAM_VERSION file):"
 	@echo "  make download                - Download Grafana MCP server for current platform"
 	@echo "  make download-all-platforms  - Download binaries for all supported platforms"
 	@echo "  make download-darwin          - Download Darwin binary (auto-detects architecture)"
@@ -225,10 +232,10 @@ help:
 	@echo ""
 	@echo "🔧 Utility Targets:"
 	@echo "  make validate                - Validate extension manifest and structure"
-	@echo "  make update-latest           - Update VERSION file to latest GitHub release"
-	@echo "  make sync-version            - Sync manifest.json with VERSION file"
-	@echo "  make clean                   - Remove downloaded binaries and dist (preserves VERSION)"
-	@echo "  make version                 - Show current installed version"
+	@echo "  make update-latest           - Update UPSTREAM_VERSION to latest mcp-grafana release"
+	@echo "  make set-dxt-version DXT_NEW_VERSION=x.y.z - Set DXT extension version in manifest"
+	@echo "  make clean                   - Remove downloaded binaries and dist"
+	@echo "  make version                 - Show current versions (DXT + upstream)"
 	@echo "  make info                    - Show platform and version information"
 	@echo "  make help                    - Show this help message"
 	@echo ""

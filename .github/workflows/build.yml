@@ -31,21 +31,24 @@ jobs:
       - name: Build DXT package
         run: make
 
-      - name: Get version
+      - name: Get versions
         run: |
-          VERSION=$(cat VERSION)
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          DXT_VERSION=$(grep -o '"version": *"[^"]*"' manifest.json | head -1 | sed 's/"version": *"//;s/"//')
+          UPSTREAM_VERSION=$(cat UPSTREAM_VERSION)
+          echo "DXT_VERSION=${DXT_VERSION}" >> $GITHUB_ENV
+          echo "UPSTREAM_VERSION=${UPSTREAM_VERSION}" >> $GITHUB_ENV
 
       - name: Upload DXT artifact
         uses: actions/upload-artifact@v6
         with:
-          name: grafana-dxt-${{ env.VERSION }}
+          name: grafana-dxt-${{ env.DXT_VERSION }}
           path: dist/grafana-dxt-*.dxt
           retention-days: 7
 
       - name: Print build info
         run: |
           echo "Build completed successfully!"
-          echo "Version: $(cat VERSION)"
+          echo "DXT extension version: ${{ env.DXT_VERSION }}"
+          echo "Upstream mcp-grafana: ${{ env.UPSTREAM_VERSION }}"
           echo "Package: $(ls dist/*.dxt)"
           echo "Size: $(ls -lh dist/*.dxt | awk '{print $5}')"

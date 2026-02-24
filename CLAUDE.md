@@ -59,7 +59,7 @@ make validate             # Validate manifest
 ### Makefile Targets
 
 **Main Targets:**
-- `make` - Complete build pipeline (uses VERSION file)
+- `make` - Complete build pipeline
 - `make build` / `make dist` - Aliases for complete build
 - `make package` - Create DXT package from current state
 
@@ -72,10 +72,10 @@ make validate             # Validate manifest
 
 **Utility Targets:**
 - `make validate` - Validate extension manifest
-- `make update-latest` - Update to latest Grafana MCP version
-- `make sync-version` - Sync manifest with VERSION file
-- `make clean` - Clean build artifacts (preserves VERSION)
-- `make version` - Show current version
+- `make update-latest` - Update upstream mcp-grafana version
+- `make set-dxt-version DXT_NEW_VERSION=x.y.z` - Set DXT extension version in manifest
+- `make clean` - Clean build artifacts
+- `make version` - Show current versions (DXT + upstream)
 - `make info` - Show platform information
 - `make help` - Show all available targets
 
@@ -83,15 +83,15 @@ make validate             # Validate manifest
 
 ```
 grafana-dxt/
-├── manifest.json          # DXT extension manifest
-├── VERSION               # Version tracking file
-├── Makefile             # Build automation
-├── CLAUDE.md            # This file
-├── server/              # Platform binaries
+├── manifest.json          # DXT extension manifest (contains DXT extension version)
+├── UPSTREAM_VERSION       # Upstream mcp-grafana server version
+├── Makefile              # Build automation
+├── CLAUDE.md             # This file
+├── server/               # Platform binaries
 │   ├── mcp-grafana-darwin      # macOS binary
 │   ├── mcp-grafana-linux       # Linux binary
 │   └── mcp-grafana-windows.exe # Windows binary
-└── dist/                # Build output
+└── dist/                 # Build output
     └── grafana-dxt-*.dxt       # Packaged extension
 ```
 
@@ -113,11 +113,23 @@ The Grafana MCP server provides access to:
 
 ## Version Management
 
-The extension uses a predictable versioning system:
-- Version is tracked in the `VERSION` file
-- Build process uses the version from this file
-- Use `make update-latest` to explicitly update to the latest version
-- This ensures reproducible builds
+This project tracks **two independent versions**:
+
+1. **DXT Extension Version** — the version of this packaging/extension project
+   - Stored in `manifest.json` → `"version"` field
+   - Used for git tags, release names, and `.dxt` asset filenames
+   - In CI, derived from the git release tag (e.g. tag `v0.11.2` → DXT version `0.11.2`)
+   - Bump with: `make set-dxt-version DXT_NEW_VERSION=x.y.z`
+
+2. **Upstream mcp-grafana Version** — the version of the Grafana MCP server binaries bundled
+   - Stored in `UPSTREAM_VERSION` file
+   - Used for downloading platform binaries from GitHub releases
+   - Update with: `make update-latest`
+
+### Release Workflow
+1. Run `make update-latest` to pull the latest mcp-grafana binaries (if needed)
+2. Create a git tag/release (e.g. `v0.12.0`) — the CI derives the DXT version from this tag
+3. The release workflow downloads binaries using `UPSTREAM_VERSION` and packages with the tag version
 
 ## Troubleshooting
 
