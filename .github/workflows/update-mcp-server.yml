@@ -65,12 +65,23 @@ jobs:
         if: steps.check.outputs.up_to_date == 'false'
         run: make clean
 
+      - name: Strip version prefix
+        if: steps.check.outputs.up_to_date == 'false'
+        id: semver
+        run: |
+          VERSION="${{ steps.check.outputs.latest }}"
+          SEMVER="${VERSION#v}"
+          echo "version=${SEMVER}" >> $GITHUB_OUTPUT
+
       - name: Create pull request
         if: steps.check.outputs.up_to_date == 'false'
         uses: peter-evans/create-pull-request@v7
         with:
-          commit-message: "chore(deps): update grafana mcp server to ${{ steps.check.outputs.latest }}"
-          title: "chore(deps): update grafana mcp server to ${{ steps.check.outputs.latest }}"
+          commit-message: |
+            feat(deps): update grafana mcp server to ${{ steps.check.outputs.latest }}
+
+            Release-As: ${{ steps.semver.outputs.version }}
+          title: "feat(deps): update grafana mcp server to ${{ steps.check.outputs.latest }}"
           body: |
             Updates the Grafana MCP server from `${{ steps.check.outputs.current }}` to `${{ steps.check.outputs.latest }}`.
 
