@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.3](https://github.com/cedricziel/grafana-dxt/compare/v0.11.2...v0.11.3) (2026-02-24)
+
+
+### Features
+
+* decouple DXT extension version from upstream mcp-grafana version ([#16](https://github.com/cedricziel/grafana-dxt/issues/16)) ([86a88ac](https://github.com/cedricziel/grafana-dxt/commit/86a88ac6743c1d3f7ebc603778ea0b89710da3f0))
+
 ## [0.11.2](https://github.com/cedricziel/grafana-dxt/compare/v0.11.1...v0.11.2) (2026-02-24)
 
 
