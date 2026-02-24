@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2](https://github.com/cedricziel/grafana-dxt/compare/v0.11.1...v0.11.2) (2026-02-24)
+
+
+### Bug Fixes
+
+* remove args with template variables that DXT runtime does not resolve ([#13](https://github.com/cedricziel/grafana-dxt/issues/13)) ([f5d288c](https://github.com/cedricziel/grafana-dxt/commit/f5d288c3e8e8ca81bd2e814d49aa8dc2ddfd6cca))
+
 ## [0.11.1](https://github.com/cedricziel/grafana-dxt/compare/v0.11.0...v0.11.1) (2026-02-24)
 
 
