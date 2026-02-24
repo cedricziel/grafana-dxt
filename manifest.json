@@ -30,24 +30,6 @@
       "type": "string",
       "title": "Extra HTTP Headers",
       "description": "JSON object of custom HTTP headers for reverse proxy or custom auth (e.g., {\"X-Custom-Auth\": \"value\"})"
-    },
-    "disable_write": {
-      "type": "boolean",
-      "title": "Read-Only Mode",
-      "description": "Disable all write operations (create, update, delete) for a read-only experience",
-      "default": false
-    },
-    "tls_skip_verify": {
-      "type": "boolean",
-      "title": "Skip TLS Verification",
-      "description": "Skip TLS certificate verification when connecting to Grafana (use for self-signed certificates)",
-      "default": false
-    },
-    "enabled_tools": {
-      "type": "string",
-      "title": "Enabled Tool Categories",
-      "description": "Comma-separated list of tool categories to enable (default includes all standard tools). Available: search, datasource, incident, prometheus, loki, alerting, dashboard, folder, oncall, asserts, sift, pyroscope, navigation, proxied, annotations, rendering, admin, clickhouse, cloudwatch, elasticsearch, examples",
-      "default": "search,datasource,incident,prometheus,loki,alerting,dashboard,folder,oncall,asserts,sift,pyroscope,navigation,proxied,annotations,rendering"
     }
   },
   "server": {
@@ -55,11 +37,6 @@
     "entry_point": "server/mcp-grafana",
     "mcp_config": {
       "command": "${__dirname}/server/mcp-grafana",
-      "args": [
-        "--disable-write=${disable_write}",
-        "--tls-skip-verify=${tls_skip_verify}",
-        "--enabled-tools=${enabled_tools}"
-      ],
       "env": {
         "GRAFANA_URL": "${grafana_url}",
         "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${grafana_service_account_token}",
@@ -69,11 +46,6 @@
       "platform_overrides": {
         "darwin": {
           "command": "${__dirname}/server/mcp-grafana-darwin",
-          "args": [
-            "--disable-write=${disable_write}",
-            "--tls-skip-verify=${tls_skip_verify}",
-            "--enabled-tools=${enabled_tools}"
-          ],
           "env": {
             "GRAFANA_URL": "${grafana_url}",
             "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${grafana_service_account_token}",
@@ -83,11 +55,6 @@
         },
         "linux": {
           "command": "${__dirname}/server/mcp-grafana-linux",
-          "args": [
-            "--disable-write=${disable_write}",
-            "--tls-skip-verify=${tls_skip_verify}",
-            "--enabled-tools=${enabled_tools}"
-          ],
           "env": {
             "GRAFANA_URL": "${grafana_url}",
             "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${grafana_service_account_token}",
@@ -97,11 +64,6 @@
         },
         "win32": {
           "command": "${__dirname}/server/mcp-grafana-windows.exe",
-          "args": [
-            "--disable-write=${disable_write}",
-            "--tls-skip-verify=${tls_skip_verify}",
-            "--enabled-tools=${enabled_tools}"
-          ],
           "env": {
             "GRAFANA_URL": "${grafana_url}",
             "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${grafana_service_account_token}",
