@@ -46,11 +46,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y make curl jq unzip
 
-      - name: Read version from VERSION file
+      - name: Determine DXT version from release-please
         run: |
-          VERSION=$(cat VERSION)
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
-          echo "Using MCP server version: ${VERSION}"
+          DXT_VERSION="${{ needs.release-please.outputs.version }}"
+          echo "DXT_VERSION=${DXT_VERSION}" >> $GITHUB_ENV
+          echo "DXT extension version: ${DXT_VERSION}"
+
+      - name: Read upstream mcp-grafana version
+        run: |
+          UPSTREAM_VERSION=$(cat UPSTREAM_VERSION)
+          echo "UPSTREAM_VERSION=${UPSTREAM_VERSION}" >> $GITHUB_ENV
+          echo "Upstream mcp-grafana version: ${UPSTREAM_VERSION}"
 
       - name: Download all platform binaries
         run: make download-all-platforms
@@ -64,17 +70,17 @@ jobs:
       - name: Generate checksum
         run: |
           cd dist
-          sha256sum grafana-dxt-${{ env.VERSION }}.dxt > grafana-dxt-${{ env.VERSION }}.dxt.sha256
+          sha256sum grafana-dxt-${{ env.DXT_VERSION }}.dxt > grafana-dxt-${{ env.DXT_VERSION }}.dxt.sha256
           echo "Checksum generated:"
-          cat grafana-dxt-${{ env.VERSION }}.dxt.sha256
+          cat grafana-dxt-${{ env.DXT_VERSION }}.dxt.sha256
 
       - name: Upload DXT package to release
-        run: gh release upload ${{ needs.release-please.outputs.tag_name }} ./dist/grafana-dxt-${{ env.VERSION }}.dxt
+        run: gh release upload ${{ needs.release-please.outputs.tag_name }} ./dist/grafana-dxt-${{ env.DXT_VERSION }}.dxt
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload checksum to release
-        run: gh release upload ${{ needs.release-please.outputs.tag_name }} ./dist/grafana-dxt-${{ env.VERSION }}.dxt.sha256
+        run: gh release upload ${{ needs.release-please.outputs.tag_name }} ./dist/grafana-dxt-${{ env.DXT_VERSION }}.dxt.sha256
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -83,11 +89,12 @@ jobs:
           echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Release**: ${{ needs.release-please.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: ${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Package**: grafana-dxt-${{ env.VERSION }}.dxt" >> $GITHUB_STEP_SUMMARY
-          echo "- **Size**: $(ls -lh dist/grafana-dxt-${{ env.VERSION }}.dxt | awk '{print $5}')" >> $GITHUB_STEP_SUMMARY
+          echo "- **DXT Extension Version**: ${{ env.DXT_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Upstream mcp-grafana**: ${{ env.UPSTREAM_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Package**: grafana-dxt-${{ env.DXT_VERSION }}.dxt" >> $GITHUB_STEP_SUMMARY
+          echo "- **Size**: $(ls -lh dist/grafana-dxt-${{ env.DXT_VERSION }}.dxt | awk '{print $5}')" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### SHA256 Checksum" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat dist/grafana-dxt-${{ env.VERSION }}.dxt.sha256 >> $GITHUB_STEP_SUMMARY
+          cat dist/grafana-dxt-${{ env.DXT_VERSION }}.dxt.sha256 >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

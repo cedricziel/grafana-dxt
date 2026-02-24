@@ -5,7 +5,6 @@
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
       "extra-files": [
-        "VERSION",
         {
           "type": "json",
           "path": "manifest.json",

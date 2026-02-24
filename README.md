@@ -39,7 +39,7 @@ Want more control?
 make download              # Just get binaries for your platform
 make download-all-platforms # Get everything
 make package              # Package what you have
-make clean                # Start fresh (keeps version file)
+make clean                # Start fresh
 ```
 
 ## Configuration
@@ -74,8 +74,8 @@ Both get configured through the extension UI. No messing with environment variab
 ```
 grafana-dxt/
 ├── Makefile              # Build automation
-├── manifest.json         # Extension config
-├── VERSION              # Current version
+├── manifest.json         # Extension config (DXT version lives here)
+├── UPSTREAM_VERSION      # Upstream mcp-grafana version to bundle
 ├── server/              # Grafana binaries (after build)
 └── dist/                # Built packages
 ```
@@ -87,7 +87,11 @@ The Makefile handles everything:
 - Manages cross-platform binaries
 - Packages everything into a `.dxt` file
 
-Version is controlled through the `VERSION` file. The build uses whatever's in there, so builds are predictable. Run `make update-latest` when you want to bump to the newest Grafana MCP server.
+There are two independent versions:
+- **DXT extension version** — lives in `manifest.json`, derived from the git tag in CI
+- **Upstream mcp-grafana version** — lives in `UPSTREAM_VERSION`, controls which binaries get downloaded
+
+Run `make update-latest` to bump the upstream mcp-grafana version. The DXT extension version is set automatically from the git tag when you create a release.
 
 ## License
 
