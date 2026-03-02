@@ -39,7 +39,7 @@ jobs:
           echo "UPSTREAM_VERSION=${UPSTREAM_VERSION}" >> $GITHUB_ENV
 
       - name: Upload DXT artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: grafana-dxt-${{ env.DXT_VERSION }}
           path: dist/grafana-dxt-*.dxt
